@@ -13,43 +13,43 @@ const setupSocket = (server) => {
     },
   });
 
- io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+  io.on("connection", (socket) => {
+    console.log("New client connected:", socket.id);
 
-  socket.on('join-document', ({ documentId, userId }) => {
-    socket.join(documentId);
-    console.log(`User ${userId} joined document ${documentId}`);
-    
-    // Notify others in the room
-    socket.to(documentId).emit('user-joined', userId);
-  });
+    socket.on("join-document", ({ documentId, userId }) => {
+      socket.join(documentId);
+      console.log(`User ${userId} joined document ${documentId}`);
 
-  socket.on('text-change', async ({ documentId, userId, content }) => {
-    try {
-      // Update database
-      await Document.findByIdAndUpdate(documentId, { content });
-      
-      // Broadcast to others in the room
-      socket.to(documentId).emit('text-update', { 
-        userId, 
-        content 
+      // Notify others in the room
+      socket.to(documentId).emit("user-joined", userId);
+    });
+
+    socket.on("text-change", async ({ documentId, userId, content }) => {
+      try {
+        // Update database
+        await Document.findByIdAndUpdate(documentId, { content });
+
+        // Broadcast to others in the room
+        socket.to(documentId).emit("text-update", {
+          userId,
+          content,
+        });
+      } catch (err) {
+        console.error("Error updating document:", err);
+      }
+    });
+
+    socket.on("cursor-update", ({ documentId, userId, position }) => {
+      socket.to(documentId).emit("cursor-update", {
+        userId,
+        position,
       });
-    } catch (err) {
-      console.error('Error updating document:', err);
-    }
-  });
+    });
 
-  socket.on('cursor-update', ({ documentId, userId, position }) => {
-    socket.to(documentId).emit('cursor-update', {
-      userId,
-      position
+    socket.on("disconnect", () => {
+      console.log("Client disconnected:", socket.id);
     });
   });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
 };
 
 const getIO = () => {
