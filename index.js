@@ -14,6 +14,10 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'https://google-docs-frontend-chi.vercel.app',
+  credentials: true,
+};
 
 app.use(cors());
 
