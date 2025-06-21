@@ -1,92 +1,59 @@
-const socketIO = require('socket.io');
-const Document = require('../models/Document');
-const SharedDocument = require('../models/SharedDocument');
+const socketIO = require("socket.io");
+const Document = require("../models/Document");
+const SharedDocument = require("../models/SharedDocument");
 
 let io;
 
 const setupSocket = (server) => {
   io = socketIO(server, {
     cors: {
-      origin: process.env.FRONTEND_URL,
-      methods: ['GET', 'POST']
+      origin: "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+  });
+
+ io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  socket.on('join-document', ({ documentId, userId }) => {
+    socket.join(documentId);
+    console.log(`User ${userId} joined document ${documentId}`);
+    
+    // Notify others in the room
+    socket.to(documentId).emit('user-joined', userId);
+  });
+
+  socket.on('text-change', async ({ documentId, userId, content }) => {
+    try {
+      // Update database
+      await Document.findByIdAndUpdate(documentId, { content });
+      
+      // Broadcast to others in the room
+      socket.to(documentId).emit('text-update', { 
+        userId, 
+        content 
+      });
+    } catch (err) {
+      console.error('Error updating document:', err);
     }
   });
 
-  io.on('connection', (socket) => {
-    console.log('New client connected:', socket.id);
-
-    // Join a document room
-    socket.on('join-document', async ({ documentId, userId }) => {
-      try {
-        const document = await Document.findById(documentId);
-        if (!document) {
-          socket.emit('error', 'Document not found');
-          return;
-        }
-
-        const isOwner = document.owner.equals(userId);
-        const isShared = await SharedDocument.findOne({
-          document: documentId,
-          user: userId
-        });
-
-        if (!isOwner && !isShared) {
-          socket.emit('error', 'No permission to access this document');
-          return;
-        }
-
-        socket.join(documentId);
-        socket.to(documentId).emit('user-joined', userId);
-        socket.emit('document-content', document.content);
-
-      } catch (err) {
-        socket.emit('error', 'Error joining document');
-        console.error(err);
-      }
-    });
-
-    socket.on('text-change', async ({ documentId, userId, content }) => {
-      try {
-        const document = await Document.findById(documentId);
-        if (!document) {
-          socket.emit('error', 'Document not found');
-          return;
-        }
-
-        const isOwner = document.owner.equals(userId);
-        const isEditor = await SharedDocument.findOne({
-          document: documentId,
-          user: userId,
-          permission: 'editor'
-        });
-
-        if (!isOwner && !isEditor) {
-          socket.emit('error', 'No permission to edit this document');
-          return;
-        }
-
-        document.content = content;
-        await document.save();
-        socket.to(documentId).emit('text-update', { userId, content });
-
-      } catch (err) {
-        socket.emit('error', 'Error updating document');
-        console.error(err);
-      }
-    });
-
-    socket.on('user-presence', ({ documentId, userId, isActive }) => {
-      socket.to(documentId).emit('user-presence-update', { userId, isActive });
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
+  socket.on('cursor-update', ({ documentId, userId, position }) => {
+    socket.to(documentId).emit('cursor-update', {
+      userId,
+      position
     });
   });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 };
 
 const getIO = () => {
-  if (!io) throw new Error('Socket.io not initialized');
+  if (!io) throw new Error("Socket.io not initialized");
   return io;
 };
 

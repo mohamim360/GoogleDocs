@@ -34,19 +34,31 @@ exports.createDocument = async (req, res, next) => {
 
 exports.getAllDocuments = async (req, res, next) => {
   try {
-    // Get documents owned by the user
+    // Get owned documents
     const ownedDocuments = await Document.find({ owner: req.user._id });
-    
-    // Get documents shared with the user
+
+    // Get shared documents with proper population
     const sharedDocuments = await SharedDocument.find({ user: req.user._id })
-      .populate('document')
-      .populate('user', 'name email avatar');
-    
+      .populate({
+        path: 'document',
+        populate: {
+          path: 'owner',
+          select: 'name email' // Include owner details if needed
+        }
+      })
+      .populate('user', 'name email'); // Include sharer details
+
     res.status(200).json({
       status: 'success',
       data: {
         ownedDocuments,
-        sharedDocuments
+        sharedDocuments: sharedDocuments.map(sd => ({
+          _id: sd._id,
+          document: sd.document,
+          permission: sd.permission,
+          sharedAt: sd.sharedAt,
+          sharedBy: sd.user // The user who shared the document
+        }))
       }
     });
   } catch (err) {
@@ -129,17 +141,17 @@ exports.deleteDocument = async (req, res, next) => {
     if (!document) {
       return next(new AppError('No document found with that ID', 404));
     }
-    
+
     // Only owner can delete
     if (!document.owner.equals(req.user._id)) {
       return next(new AppError('Only the owner can delete this document', 403));
     }
-    
-    await document.remove();
-    
+
+    await document.deleteOne(); // ✅ FIXED: Use deleteOne instead of remove
+
     // Also delete all shared access records
     await SharedDocument.deleteMany({ document: req.params.id });
-    
+
     res.status(204).json({
       status: 'success',
       data: null
@@ -148,6 +160,7 @@ exports.deleteDocument = async (req, res, next) => {
     next(err);
   }
 };
+
 
 exports.shareDocument = async (req, res, next) => {
   try {
