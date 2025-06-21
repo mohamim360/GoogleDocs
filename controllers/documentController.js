@@ -5,23 +5,32 @@ const AppError = require('../utils/appError');
 
 exports.createDocument = async (req, res, next) => {
   try {
-    const { title } = req.body;
+    console.log('Incoming request body:', req.body); // Debug log
     
+    const { title, content } = req.body;
+    
+    if (!content) {
+      console.warn('Content is empty in request');
+    }
+
     const document = await Document.create({
-      title,
+      title: title ,
+      content: content , // Ensure content is included
       owner: req.user._id
     });
+
+    console.log('Created document:', document); // Debug log
     
     res.status(201).json({
       status: 'success',
-      data: {
-        document
-      }
+      data: { document }
     });
   } catch (err) {
+    console.error('Create document error:', err);
     next(err);
   }
 };
+
 
 exports.getAllDocuments = async (req, res, next) => {
   try {

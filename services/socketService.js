@@ -18,7 +18,6 @@ const setupSocket = (server) => {
     // Join a document room
     socket.on('join-document', async ({ documentId, userId }) => {
       try {
-        // Verify user has access to the document
         const document = await Document.findById(documentId);
         if (!document) {
           socket.emit('error', 'Document not found');
@@ -32,17 +31,12 @@ const setupSocket = (server) => {
         });
 
         if (!isOwner && !isShared) {
-          socket.emit('error', 'You do not have permission to access this document');
+          socket.emit('error', 'No permission to access this document');
           return;
         }
 
         socket.join(documentId);
-        console.log(`User ${userId} joined document ${documentId}`);
-
-        // Notify others in the room about the new user
         socket.to(documentId).emit('user-joined', userId);
-
-        // Send current document content to the new user
         socket.emit('document-content', document.content);
 
       } catch (err) {
@@ -51,10 +45,8 @@ const setupSocket = (server) => {
       }
     });
 
-    // Handle text changes
     socket.on('text-change', async ({ documentId, userId, content }) => {
       try {
-        // Verify user has edit permission
         const document = await Document.findById(documentId);
         if (!document) {
           socket.emit('error', 'Document not found');
@@ -69,15 +61,12 @@ const setupSocket = (server) => {
         });
 
         if (!isOwner && !isEditor) {
-          socket.emit('error', 'You do not have permission to edit this document');
+          socket.emit('error', 'No permission to edit this document');
           return;
         }
 
-        // Update document in database
         document.content = content;
         await document.save();
-
-        // Broadcast changes to all other clients in the room
         socket.to(documentId).emit('text-update', { userId, content });
 
       } catch (err) {
@@ -86,12 +75,10 @@ const setupSocket = (server) => {
       }
     });
 
-    // Handle user presence
     socket.on('user-presence', ({ documentId, userId, isActive }) => {
       socket.to(documentId).emit('user-presence-update', { userId, isActive });
     });
 
-    // Handle disconnection
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
     });
@@ -99,13 +86,8 @@ const setupSocket = (server) => {
 };
 
 const getIO = () => {
-  if (!io) {
-    throw new Error('Socket.io not initialized');
-  }
+  if (!io) throw new Error('Socket.io not initialized');
   return io;
 };
 
-module.exports = {
-  setupSocket,
-  getIO
-};
+module.exports = { setupSocket, getIO };

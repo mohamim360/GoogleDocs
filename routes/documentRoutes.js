@@ -8,9 +8,9 @@ const router = express.Router();
 // Protect all routes after this middleware
 router.use(authenticate);
 
-router.route('/')
-  .get(documentController.getAllDocuments)
-  .post(documentController.createDocument);
+// Corrected routes
+router.get('/', documentController.getAllDocuments);
+router.post('/', documentController.createDocument);
 
 router.route('/:id')
   .get(documentController.getDocument)

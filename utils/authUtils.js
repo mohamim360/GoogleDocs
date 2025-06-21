@@ -1,4 +1,5 @@
-import { verifyToken } from "../config/jwt";
+import { verifyToken } from "../config/jwt.js";
+import User from "../models/User.js";
 
 export const authenticate = async (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
