@@ -7,7 +7,7 @@ let io;
 const setupSocket = (server) => {
   io = socketIO(server, {
     cors: {
-      origin: "http://localhost:3000",
+      origin: "https://google-docs-frontend-chi.vercel.app",
       methods: ["GET", "POST"],
       credentials: true,
     },
